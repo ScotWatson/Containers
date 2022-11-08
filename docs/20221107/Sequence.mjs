@@ -3,9 +3,9 @@
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-import * as Types from "https://scotwatson.github.io/Debug/Types.mjs";
-import * as ErrorLog from "https://scotwatson.github.io/Debug/ErrorLog.mjs";
-import * as Memory from "https://scotwatson.github.io/Memory/Memory.mjs";
+import * as Types from "https://scotwatson.github.io/Debug/20221107/Types.mjs";
+import * as ErrorLog from "https://scotwatson.github.io/Debug/20221107/ErrorLog.mjs";
+import * as Memory from "https://scotwatson.github.io/Memory/20221107/Memory.mjs";
 
 export class Sequence {
   #array;
@@ -268,9 +268,9 @@ export class Sequence {
       if (Types.isArray(args)) {
         push_elements(args);
       } else if (Types.isSimpleObject(args)) {
-        if (!(args.hasOwnProperty("element"))) {
+        if (!(Object.hasOwn(args, "element"))) {
           push_element(args.element);
-        } else if (!(args.hasOwnProperty("elements"))) {
+        } else if (!(Object.hasOwn(args, "elements"))) {
           push_elements(args.elements);
         } else {
           throw "Invalid Arguments";
