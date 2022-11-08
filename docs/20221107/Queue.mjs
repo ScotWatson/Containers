@@ -3,186 +3,330 @@
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
+import * as Types from "https://scotwatson.github.io/Debug/20221107/Types.mjs";
+import * as ErrorLog from "https://scotwatson.github.io/Debug/20221107/ErrorLog.mjs";
+import * as Memory from "https://scotwatson.github.io/Memory/20221107/Memory.mjs";
+
 export class Queue {
   #items;
   #headIndex;
   #tailIndex;
   constructor(args) {
-    if (!(args.hasOwnProperty("length"))) {
-      throw new Error("length is required.");
+    try {
+      let capacity;
+      if (Types.isSimpleObject(args)) {
+        if (!(Object.hasOwn(args, "capacity"))) {
+          throw "Argument \"capacity\" is required.";
+        }
+        capacity = args.capacity;
+      } else {
+        capacity = args;
+      }
+      if (!(Types.isInteger(capacity))) {
+        throw "Argument \"capacity\" must be an integer.";
+      }
+      this.#items = new Array(capacity + 1);
+      this.#headIndex = 0;
+      this.#tailIndex = 0;
+    } catch (e) {
+      ErrorLog.rethrow({
+        functionName: "Queue constructor",
+        error: e,
+      });
     }
-    this.#items = new Array(length + 1);
-    this.#headIndex = 0;
-    this.#tailIndex = 0;
   }
   enqueue(args) {
-    if (this.availableSlots() === 0) {
-      throw new Error("Queue is full.");
+    try {
+      if (this.availableSlots() === 0) {
+        throw "Queue is full.";
+      }
+      this.#items[this.#tailIndex] = args;
+      this.#tailIndex = (this.#tailIndex + 1) % this.#items.length;
+    } catch (e) {
+      ErrorLog.rethrow({
+        functionName: "Queue.enqueue",
+        error: e,
+      });
     }
-    this.#items[this.#tailIndex] = args;
-    this.#tailIndex = (this.#tailIndex + 1) % this.#items.length;
   }
   dequeue(args) {
-    if (this.isEmpty()) {
-      throw new Error("Empty queue cannot be dequeued.");
+    try {
+      if (this.isEmpty()) {
+        throw "Empty queue cannot be dequeued.";
+      }
+      const item = this.#items[this.#headIndex];
+      this.#items[this.#headIndex] = null;
+      this.#headIndex = (this.#headIndex + 1) % this.#items.length;
+      return item;
+    } catch (e) {
+      ErrorLog.rethrow({
+        functionName: "Queue.dequeue",
+        error: e,
+      });
     }
-    const item = this.#items[this.#headIndex];
-    this.#items[this.#headIndex] = null;
-    this.#headIndex = (this.#headIndex + 1) % this.#items.length;
-    return item;
   }
   isEmpty() {
-    return (this.#tailIndex === this.#headIndex);
+    try {
+      return (this.#tailIndex === this.#headIndex);
+    } catch (e) {
+      ErrorLog.rethrow({
+        functionName: "Queue.isEmpty",
+        error: e,
+      });
+    }
   }
   availableSlots() {
-    if (this.#tailIndex > this.#headIndex) {
-      return (this.#items.length - (this.#tailIndex - this.#headIndex));
-    } else {
-      return (this.#headIndex - this.#tailIndex);
+    try {
+      if (this.#tailIndex > this.#headIndex) {
+        return (this.#items.length - (this.#tailIndex - this.#headIndex));
+      } else {
+        return (this.#headIndex - this.#tailIndex);
+      }
+    } catch (e) {
+      ErrorLog.rethrow({
+        functionName: "Queue.availableSlots",
+        error: e,
+      });
     }
   }
   getCapacity() {
-    return (this.#items.length - 1);
+    try {
+      return (this.#items.length - 1);
+    } catch (e) {
+      ErrorLog.rethrow({
+        functionName: "Queue.getCapacity",
+        error: e,
+      });
+    }
   }
   setCapacity(args) {
-    const usedSlots = (function () {
+    try {
+      const usedSlots = (function () {
+        if (this.#tailIndex > this.#headIndex) {
+          return (this.#tailIndex - this.#headIndex) - 1;
+        } else {
+          return ((this.#tailIndex - this.#headIndex) + this.#items.length) - 1;
+        }
+      })();
+      if (args < usedSlots) {
+        throw "Capacity cannot be less than the used slots.";
+      }
+      const newItems = new Array(args + 1);
+      let i = this.#headIndex;
+      let j = 0;
       if (this.#tailIndex > this.#headIndex) {
-        return (this.#tailIndex - this.#headIndex) - 1;
+        for (; i < this.#tailIndex; ++i, ++j) {
+          newItems[j] = this.#items[i];
+        }
       } else {
-        return ((this.#tailIndex - this.#headIndex) + this.#items.length) - 1;
+        for (; i < this.#items.length; ++i, ++j) {
+          newItems[j] = this.#items[i];
+        }
+        i = 0;
+        for (; i < this.#tailIndex; ++i, ++j) {
+          newItems[j] = this.#items[i];
+        }
       }
-    })();
-    if (args < usedSlots) {
-      throw new Error("Capacity cannot be less than the used slots.");
+      this.#items = newItems;
+      this.#headIndex = 0;
+      this.#tailIndex = usedSlots;
+    } catch (e) {
+      ErrorLog.rethrow({
+        functionName: "Queue.setCapacity",
+        error: e,
+      });
     }
-    const newItems = new Array(args + 1);
-    let i = this.#headIndex;
-    let j = 0;
-    if (this.#tailIndex > this.#headIndex) {
-      for (; i < this.#tailIndex; ++i, ++j) {
-        newItems[j] = this.#items[i];
-      }
-    } else {
-      for (; i < this.#items.length; ++i, ++j) {
-        newItems[j] = this.#items[i];
-      }
-      i = 0;
-      for (; i < this.#tailIndex; ++i, ++j) {
-        newItems[j] = this.#items[i];
-      }
-    }
-    this.#items = newItems;
-    this.#headIndex = 0;
-    this.#tailIndex = usedSlots;
   }
 };
-
-const viewCtors = [ Int8Array, Uint8Array, Uint8ClampedArray, Int16Array, Uint16Array, Int32Array, Uint32Array, Float32Array, Float64Array, BigInt64Array,  BigUint64Array ];
 
 export class DataQueue {
   #buffer;
   #items;
   #reserveLength;
   get viewCtor() {
-    const viewCtorNum = (new DataView(this.#buffer)).getUint32(0);
-    if (viewCtorNum > viewCtors.length) {
-      throw new Error("viewCtorNum out of range: " + viewCtorNum);
+    try {
+      const viewCtorNum = (new DataView(this.#buffer)).getUint32(0);
+      if (viewCtorNum > viewCtors.length) {
+        throw new Error("viewCtorNum out of range: " + viewCtorNum);
+      }
+      return viewCtors[viewCtorNum];
+    } catch (e) {
+      ErrorLog.rethrow({
+        functionName: "DataQueue.viewCtor",
+        error: e,
+      });
     }
-    return viewCtors[viewCtorNum];
   }
   get #headIndex() {
-    return (new DataView(this.#buffer)).getUint32(4);
+    try {
+      return (new DataView(this.#buffer)).getUint32(4);
+    } catch (e) {
+      ErrorLog.rethrow({
+        functionName: "get DataQueue.#headIndex",
+        error: e,
+      });
+    }
   }
   get #tailIndex() {
-    return (new DataView(this.#buffer)).getUint32(8);
+    try {
+      return (new DataView(this.#buffer)).getUint32(8);
+    } catch (e) {
+      ErrorLog.rethrow({
+        functionName: "get DataQueue.#tailIndex",
+        error: e,
+      });
+    }
   }
   set #headIndex(newValue) {
-    (new DataView(this.#buffer)).setUint32(4, newValue);
+    try {
+      (new DataView(this.#buffer)).setUint32(4, newValue);
+    } catch (e) {
+      ErrorLog.rethrow({
+        functionName: "set DataQueue.#headIndex",
+        error: e,
+      });
+    }
   }
   set #tailIndex(newValue) {
-    (new DataView(this.#buffer)).setUint32(8, newValue);
+    try {
+      (new DataView(this.#buffer)).setUint32(8, newValue);
+    } catch (e) {
+      ErrorLog.rethrow({
+        functionName: "set DataQueue.#tailIndex",
+        error: e,
+      });
+    }
   }
   constructor(args) {
-    if (args.hasOwnProperty("buffer")) {
-      this.#buffer = args.buffer;
-      if (args.hasOwnProperty("viewCtor")) {
-        if (args.viewCtor !== this.viewCtor) {
-          throw new Error("viewCtor does not match.");
+    try {
+      if (Object.hasOwn(args, "buffer")) {
+        this.#buffer = args.buffer;
+        if (Object.hasOwn(args, "viewCtor")) {
+          if (args.viewCtor !== this.viewCtor) {
+            throw "viewCtor does not match.";
+          }
         }
-      }
-      if (args.hasOwnProperty("length")) {
-        const requiredLength = args.length * args.viewCtor.BYTES_PER_ELEMENT + 12;
-        if (args.length !== requiredLength) {
-          throw new Error("length does not match.");
+        if (Object.hasOwn(args, "length")) {
+          const requiredLength = args.length * args.viewCtor.BYTES_PER_ELEMENT + 12;
+          if (args.length !== requiredLength) {
+            throw "length does not match.";
+          }
         }
-      }
-    } else {
-      if (!(args.hasOwnProperty("viewCtor"))) {
-        throw new Error("viewCtor is required.");
-      }
-      if (!(args.hasOwnProperty("length"))) {
-        throw new Error("length is required.");
-      }
-      const viewCtorNum = viewCtors.indexOf(args.viewCtor);
-      if (viewCtorNum === -1) {
-        throw new Error("args.viewCtor is not a view constructor.");
-      }
-      // Strict comparison against true to ensure that args.shared is a boolean value
-      if (args.shared === true) {
-        this.#buffer = new SharedArrayBuffer(args.length * args.viewCtor.BYTES_PER_ELEMENT + 12);
       } else {
-        this.#buffer = new ArrayBuffer(args.length * args.viewCtor.BYTES_PER_ELEMENT + 12);
+        if (!(Object.hasOwn(args, "viewCtor"))) {
+          throw "viewCtor is required.";
+        }
+        if (!(Object.hasOwn(args, "length"))) {
+          throw "length is required.";
+        }
+        const viewCtorNum = viewCtors.indexOf(args.viewCtor);
+        if (viewCtorNum === -1) {
+          throw "args.viewCtor is not a view constructor.";
+        }
+        // Strict comparison against true to ensure that args.shared is a boolean value
+        if (args.shared === true) {
+          this.#buffer = new SharedArrayBuffer(args.length * args.viewCtor.BYTES_PER_ELEMENT + 12);
+        } else {
+          this.#buffer = new ArrayBuffer(args.length * args.viewCtor.BYTES_PER_ELEMENT + 12);
+        }
+        (new DataView(this.#buffer)).setUint32(0, viewCtorNum);
       }
-      (new DataView(this.#buffer)).setUint32(0, viewCtorNum);
+      this.#reserveLength = 0;
+      this.#items = new this.viewCtor(this.#buffer, 12, args.length);
+      // headIndex & tailIndex are automatically 0
+    } catch (e) {
+      ErrorLog.rethrow({
+        functionName: "DataQueue constructor",
+        error: e,
+      });
     }
-    this.#reserveLength = 0;
-    this.#items = new this.viewCtor(this.#buffer, 12, args.length);
-    // headIndex & tailIndex are automatically 0
   }
   reserve(args) {
-    if (!(args.hasOwnProperty("length"))) {
-      throw new Error("length is required.");
+    try {
+      if (!(args.hasOwnProperty("length"))) {
+        throw "length is required.";
+      }
+      if (this.#reserveLength !== 0) {
+        throw "Enqueue existing reserve before requesting more.";
+      }
+      if (args.length > this.remainingSpaces()) {
+        throw "Insufficient space.";
+      }
+      if (args.length > (this.#items.length - this.#tailIndex)) {
+        this.#items.copyWithin(0, this.#headIndex, this.#tailIndex);
+        this.#tailIndex -= this.#headIndex;
+        this.#headIndex = 0;
+      }
+      this.#reserveLength = args.length;
+      return this.#items.subarray(this.#tailIndex, this.#tailIndex + args.length);
+    } catch (e) {
+      ErrorLog.rethrow({
+        functionName: "DataQueue.reserve",
+        error: e,
+      });
     }
-    if (this.#reserveLength !== 0) {
-      throw new Error("Enqueue existing reserve before requesting more.");
-    }
-    if (args.length > this.remainingSpaces()) {
-      throw new Error("Insufficient space.");
-    }
-    if (args.length > (this.#items.length - this.#tailIndex)) {
-      this.#items.copyWithin(0, this.#headIndex, this.#tailIndex);
-      this.#tailIndex -= this.#headIndex;
-      this.#headIndex = 0;
-    }
-    this.#reserveLength = args.length;
-    return this.#items.subarray(this.#tailIndex, this.#tailIndex + args.length);
   }
   enqueue() {
-    if (this.#reserveLength === 0) {
-      throw new Error("No reserve available to enqueue.");
+    try {
+      if (this.#reserveLength === 0) {
+        throw "No reserve available to enqueue.";
+      }
+      this.#tailIndex += this.#reserveLength;
+    } catch (e) {
+      ErrorLog.rethrow({
+        functionName: "DataQueue.enqueue",
+        error: e,
+      });
     }
-    this.#tailIndex += this.#reserveLength;
   }
   dequeue(args) {
-    if (!(args.hasOwnProperty("view"))) {
-      throw new Error("view is required.");
+    try {
+      if (!(args.hasOwnProperty("view"))) {
+        throw new Error("view is required.");
+      }
+      if (this.#headIndex + args.view.length > this.#tailIndex) {
+        throw new Error("More data requested than is available in queue.");
+      }
+      let ret = this.#items.subarray(this.#headIndex, this.#headIndex + args.view.length);
+      args.view.set(ret);
+      this.#headIndex += args.length;
+      return;
+    } catch (e) {
+      ErrorLog.rethrow({
+        functionName: "DataQueue.dequeue",
+        error: e,
+      });
     }
-    if (this.#headIndex + args.view.length > this.#tailIndex) {
-      throw new Error("More data requested than is available in queue.");
-    }
-    let ret = this.#items.subarray(this.#headIndex, this.#headIndex + args.view.length);
-    args.view.set(ret);
-    this.#headIndex += args.length;
-    return;
   }
   isEmpty() {
-    return (this.#tailIndex === this.#headIndex);
+    try {
+      return (this.#tailIndex === this.#headIndex);
+    } catch (e) {
+      ErrorLog.rethrow({
+        functionName: "DataQueue.isEmpty",
+        error: e,
+      });
+    }
   }
   remainingSpaces() {
-    return (this.#items.length - (this.#tailIndex - this.#headIndex));
+    try {
+      return (this.#items.length - (this.#tailIndex - this.#headIndex));
+    } catch (e) {
+      ErrorLog.rethrow({
+        functionName: "DataQueue.remainingSpaces",
+        error: e,
+      });
+    }
   }
   // NOTE: Return value is only to be used to construct a copy of the queue. Do not read or modify.
   get buffer() {
-    return this.#buffer;
+    try {
+      return this.#buffer;
+    } catch (e) {
+      ErrorLog.rethrow({
+        functionName: "get DataQueue.buffer",
+        error: e,
+      });
+    }
   }
 };
