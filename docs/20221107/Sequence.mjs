@@ -9,16 +9,8 @@ import * as Memory from "https://scotwatson.github.io/Memory/20221107/Memory.mjs
 
 export class Sequence {
   #array;
-  #ElementClass;
   constructor(args) {
     try {
-      if (!(Types.isSimpleObject(args))) {
-        throw "Arguments must be a simple object.";
-      }
-      if (!(Object.hasOwn(args, "ElementClass"))) {
-        throw "Argument \"ElementClass\" is required.";
-      }
-      this.#ElementClass = args.ElementClass;
       this.#array = [];
     } catch (e) {
       ErrorLog.rethrow({
@@ -33,16 +25,6 @@ export class Sequence {
     } catch (e) {
       ErrorLog.rethrow({
         functionName: "get Sequence.length",
-        error: e,
-      });
-    }
-  }
-  get ElementClass() {
-    try {
-      return this.#ElementClass;
-    } catch (e) {
-      ErrorLog.rethrow({
-        functionName: "get Sequence.ElementClass",
         error: e,
       });
     }
@@ -174,17 +156,9 @@ export class Sequence {
         throw "Invalid Arguments";
       }
       function push_elements(elements) {
-        for (const element of elements) {
-          if (!(element instanceof this.#ElementClass)) {
-            throw "Element is of incompatible type.";
-          }
-        }
         return this.#array.push(...elements);
       }
       function push_element(element) {
-        if (!(element instanceof this.#ElementClass)) {
-          throw "Element is of incompatible type.";
-        }
         return this.#array.push(element);
       }
     } catch (e) {
@@ -266,30 +240,22 @@ export class Sequence {
   unshift(args) {
     try {
       if (Types.isArray(args)) {
-        push_elements(args);
+        unshift_elements(args);
       } else if (Types.isSimpleObject(args)) {
         if (!(Object.hasOwn(args, "element"))) {
-          push_element(args.element);
+          unshift_element(args.element);
         } else if (!(Object.hasOwn(args, "elements"))) {
-          push_elements(args.elements);
+          unshift_elements(args.elements);
         } else {
           throw "Invalid Arguments";
         }
       } else {
-        push_element(args);
+        unshift_element(args);
       }
       function push_elements(elements) {
-        for (const element of elements) {
-          if (!(this.#alphabet.isValid(element))) {
-            throw "Invalid Arguments";
-          }
-        }
         return this.#array.unshift(...elements);
       }
       function push_element(element) {
-        if (!(this.#alphabet.isValid(element))) {
-          throw "Invalid Arguments";
-        }
         return this.#array.unshift(element);
       }
     } catch (e) {
@@ -325,7 +291,7 @@ export class Sequence {
   padEnd(args) {
     try {
       if (!(Types.isSimpleObject(args))) {
-        throw "Invalid Arguments";
+        throw "Arguments must be a simple object.";
       }
       if (!(Object.hasOwn(args, "targetLength"))) {
         throw "Argument \"targetLength\" is required.";
@@ -335,9 +301,6 @@ export class Sequence {
       }
       if (!(Object.hasOwn(args, "padElement"))) {
         throw "Argument \"padElement\" is required.";
-      }
-      if (!(args.padElement instanceof this.#ElementClass)) {
-        throw "Argument \"padElement\" must be of type this.ElementClass.";
       }
       return Array(args.targetLength).fill(args.padElement).concat(this.#array).slice(-(Math.max(args.targetLength, this.#array.length)));
     } catch (e) {
@@ -350,7 +313,7 @@ export class Sequence {
   padStart(args) {
     try {
       if (!(Types.isSimpleObject(args))) {
-        throw "Invalid Arguments";
+        throw "Arguments must be a simple object.";
       }
       if (!(Object.hasOwn(args, "targetLength"))) {
         throw "Argument \"targetLength\" is required.";
@@ -375,7 +338,7 @@ export class Sequence {
   repeat(args) {
     try {
       if (!(Types.isSimpleObject(args))) {
-        throw "Invalid Arguments";
+        throw "Arguments must be a simple object.";
       }
       if (!(Object.hasOwn(args, "count"))) {
         throw "Argument \"count\" is required.";
@@ -394,7 +357,7 @@ export class Sequence {
   replace(args) {
     try {
       if (!(Types.isSimpleObject(args))) {
-        throw new Error("Invalid Arguments");
+        throw "Arguments must be a simple object.";
       }
       if (!(Object.hasOwn(args, "findSequence"))) {
         throw "Argument \"findSequence\" is required.";
