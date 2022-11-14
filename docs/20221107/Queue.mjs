@@ -139,194 +139,124 @@ export class Queue {
   }
 };
 
-export class DataQueue {
-  #buffer;
-  #items;
+export class ByteQueue {
+  #block;
+  #view; // for memoization
+  #headIndex;
+  #tailIndex;
   #reserveLength;
-  get viewCtor() {
-    try {
-      const viewCtorNum = (new DataView(this.#buffer)).getUint32(0);
-      if (viewCtorNum > viewCtors.length) {
-        throw new Error("viewCtorNum out of range: " + viewCtorNum);
-      }
-      return viewCtors[viewCtorNum];
-    } catch (e) {
-      ErrorLog.rethrow({
-        functionName: "DataQueue.viewCtor",
-        error: e,
-      });
-    }
-  }
-  get #headIndex() {
-    try {
-      return (new DataView(this.#buffer)).getUint32(4);
-    } catch (e) {
-      ErrorLog.rethrow({
-        functionName: "get DataQueue.#headIndex",
-        error: e,
-      });
-    }
-  }
-  get #tailIndex() {
-    try {
-      return (new DataView(this.#buffer)).getUint32(8);
-    } catch (e) {
-      ErrorLog.rethrow({
-        functionName: "get DataQueue.#tailIndex",
-        error: e,
-      });
-    }
-  }
-  set #headIndex(newValue) {
-    try {
-      (new DataView(this.#buffer)).setUint32(4, newValue);
-    } catch (e) {
-      ErrorLog.rethrow({
-        functionName: "set DataQueue.#headIndex",
-        error: e,
-      });
-    }
-  }
-  set #tailIndex(newValue) {
-    try {
-      (new DataView(this.#buffer)).setUint32(8, newValue);
-    } catch (e) {
-      ErrorLog.rethrow({
-        functionName: "set DataQueue.#tailIndex",
-        error: e,
-      });
-    }
-  }
   constructor(args) {
     try {
-      if (Object.hasOwn(args, "buffer")) {
-        this.#buffer = args.buffer;
-        if (Object.hasOwn(args, "viewCtor")) {
-          if (args.viewCtor !== this.viewCtor) {
-            throw "viewCtor does not match.";
-          }
-        }
-        if (Object.hasOwn(args, "length")) {
-          const requiredLength = args.length * args.viewCtor.BYTES_PER_ELEMENT + 12;
-          if (args.length !== requiredLength) {
-            throw "length does not match.";
-          }
-        }
-      } else {
-        if (!(Object.hasOwn(args, "viewCtor"))) {
-          throw "viewCtor is required.";
-        }
-        if (!(Object.hasOwn(args, "length"))) {
-          throw "length is required.";
-        }
-        const viewCtorNum = viewCtors.indexOf(args.viewCtor);
-        if (viewCtorNum === -1) {
-          throw "args.viewCtor is not a view constructor.";
-        }
-        // Strict comparison against true to ensure that args.shared is a boolean value
-        if (args.shared === true) {
-          this.#buffer = new SharedArrayBuffer(args.length * args.viewCtor.BYTES_PER_ELEMENT + 12);
-        } else {
-          this.#buffer = new ArrayBuffer(args.length * args.viewCtor.BYTES_PER_ELEMENT + 12);
-        }
-        (new DataView(this.#buffer)).setUint32(0, viewCtorNum);
+      if (!(Types.isSimpleObject(args))) {
+        throw "Argument must be a simple object.";
       }
+      if (!(Object.hasOwn(args, "byteLength"))) {
+        throw "Argument \"byteLength\" must be provided.";
+      }
+      this.#block = new Memory.Block({
+        byteLength: args.byteLength;
+      });
+      this.#headIndex = 0;
+      this.#tailIndex = 0;
       this.#reserveLength = 0;
-      this.#items = new this.viewCtor(this.#buffer, 12, args.length);
-      // headIndex & tailIndex are automatically 0
+      this.#view = new Memory.View({
+        memoryBlock: this.#block,
+      });
     } catch (e) {
       ErrorLog.rethrow({
-        functionName: "DataQueue constructor",
+        functionName: "ByteQueue constructor",
         error: e,
       });
     }
   }
   reserve(args) {
     try {
-      if (!(args.hasOwnProperty("length"))) {
-        throw "length is required.";
+      let byteLength;
+      if (Types.isInteger(args)) {
+        byteLength = args;
+      } else if (Types.isSimpleObject(args)) {
+        if (!(Object.hasOwn(args, "byteLength"))) {
+          throw "Argument \"byteLength\" must be provided.";
+        }
+        byteLength = args.byteLength;
+      } else {
+        throw "Invalid Argument";
       }
       if (this.#reserveLength !== 0) {
-        throw "Enqueue existing reserve before requesting more.";
+        throw "Attempt to reserve before enqueue.";
       }
-      if (args.length > this.remainingSpaces()) {
-        throw "Insufficient space.";
+      if (byteLength <= 0) {
+        throw "Argument \"byteLength\" must be positive.";
       }
-      if (args.length > (this.#items.length - this.#tailIndex)) {
-        this.#items.copyWithin(0, this.#headIndex, this.#tailIndex);
+      if (byteLength >= this.#block.byteLength) {
+        throw "Argument \"byteLength\" must be less than byteCapacity.";
+      }
+      if ((this.#tailIndex + byteLength) >= this.#block.byteLength) {
+        this.#view.copyWithin({
+          fromStart: this.#headIndex,
+          fromEnd: this.#tailIndex,
+          toStart: 0,
+        });
         this.#tailIndex -= this.#headIndex;
         this.#headIndex = 0;
       }
-      this.#reserveLength = args.length;
-      return this.#items.subarray(this.#tailIndex, this.#tailIndex + args.length);
+      this.#enqueueReserveLength = byteLength;
+      return new Memory.View({
+        memoryBlock: this.#block,
+        byteOffset: this.#tailIndex,
+        byteLength: byteLength,
+      });
     } catch (e) {
       ErrorLog.rethrow({
-        functionName: "DataQueue.reserve",
+        functionName: "ByteQueue.reserve",
         error: e,
       });
     }
   }
   enqueue() {
     try {
-      if (this.#reserveLength === 0) {
-        throw "No reserve available to enqueue.";
-      }
-      this.#tailIndex += this.#reserveLength;
+      this.#tailIndex += this.#enqueueReserveLength;
+      this.#enqueueReserveLength = 0;
     } catch (e) {
       ErrorLog.rethrow({
-        functionName: "DataQueue.enqueue",
+        functionName: "ByteQueue.enqueue",
         error: e,
       });
     }
   }
   dequeue(args) {
     try {
-      if (!(args.hasOwnProperty("view"))) {
-        throw new Error("view is required.");
+      let memoryView;
+      if (args.constructor === Memory.View) {
+        memoryView = args;
+      } else if (Types.isSimpleObject(args)) {
+        if (!(Object.hasOwn(args, "memoryView"))) {
+          throw "Argument \"memoryView\" must be provided.";
+        }
+        memoryView = args.memoryView;
+      } else {
+        throw "Invalid Argument";
       }
-      if (this.#headIndex + args.view.length > this.#tailIndex) {
-        throw new Error("More data requested than is available in queue.");
+      let byteLength = memoryView.byteLength;
+      if (this.#headIndex + byteLength >= this.#tailIndex) {
+        throw "More bytes requested than are available in queue.";
       }
-      let ret = this.#items.subarray(this.#headIndex, this.#headIndex + args.view.length);
-      args.view.set(ret);
-      this.#headIndex += args.length;
-      return;
+      const view = this.#view.createSlice({
+        byteOffset: this.#headIndex,
+        byteLength: memoryView.byteLength,
+      });
+      memoryView.set(view);
     } catch (e) {
       ErrorLog.rethrow({
-        functionName: "DataQueue.dequeue",
+        functionName: "ByteQueue.dequeue",
         error: e,
       });
     }
   }
-  isEmpty() {
-    try {
-      return (this.#tailIndex === this.#headIndex);
-    } catch (e) {
-      ErrorLog.rethrow({
-        functionName: "DataQueue.isEmpty",
-        error: e,
-      });
-    }
+  usedCapacity() {
+    return (this.#tailIndex - this.#headIndex);
   }
-  remainingSpaces() {
-    try {
-      return (this.#items.length - (this.#tailIndex - this.#headIndex));
-    } catch (e) {
-      ErrorLog.rethrow({
-        functionName: "DataQueue.remainingSpaces",
-        error: e,
-      });
-    }
+  unusedCapacity() {
+    return (this.#block.byteLength - (this.#tailIndex - this.#headIndex));
   }
-  // NOTE: Return value is only to be used to construct a copy of the queue. Do not read or modify.
-  get buffer() {
-    try {
-      return this.#buffer;
-    } catch (e) {
-      ErrorLog.rethrow({
-        functionName: "get DataQueue.buffer",
-        error: e,
-      });
-    }
-  }
-};
+}
