@@ -144,7 +144,7 @@ export class ByteQueue {
   #view; // for memoization
   #headIndex;
   #tailIndex;
-  #reserveLength;
+  #reserved;
   constructor(args) {
     try {
       if (!(Types.isSimpleObject(args))) {
@@ -158,7 +158,7 @@ export class ByteQueue {
       });
       this.#headIndex = 0;
       this.#tailIndex = 0;
-      this.#reserveLength = 0;
+      this.#reserved = false;
       this.#view = new Memory.View({
         memoryBlock: this.#block,
       });
@@ -169,7 +169,36 @@ export class ByteQueue {
       });
     }
   }
-  reserve(args) {
+  getMaxReserve() {
+    try {
+      return this.#view.createSlice({
+        byteOffset: this.#tailIndex,
+        byteLength: this.#view.byteLength - this.#tailIndex,
+      };
+    } catch (e) {
+      ErrorLog.rethrow({
+        functionName: "ByteQueue.getMaxReserve",
+        error: e,
+      });
+    }
+  }
+  collate() {
+    try {
+      this.#view.copyWithin({
+        fromStart: this.#headIndex,
+        fromEnd: this.#tailIndex,
+        toStart: 0,
+      });
+      this.#tailIndex -= this.#headIndex;
+      this.#headIndex = 0;
+    } catch (e) {
+      ErrorLog.rethrow({
+        functionName: "ByteQueue.collate",
+        error: e,
+      });
+    }
+  }
+  getReserve(args) {
     try {
       let byteLength;
       if (Types.isInteger(args)) {
@@ -191,29 +220,21 @@ export class ByteQueue {
       if (byteLength >= this.#block.byteLength) {
         throw "Argument \"byteLength\" must be less than byteCapacity.";
       }
-      if ((this.#tailIndex + byteLength) >= this.#block.byteLength) {
-        this.#view.copyWithin({
-          fromStart: this.#headIndex,
-          fromEnd: this.#tailIndex,
-          toStart: 0,
-        });
-        this.#tailIndex -= this.#headIndex;
-        this.#headIndex = 0;
+      if (byteLength + this.#tailIndex > this.#block.byteLength) {
+        this.collate();
       }
-      this.#enqueueReserveLength = byteLength;
-      return new Memory.View({
-        memoryBlock: this.#block,
+      return this.#view.createSlice({
         byteOffset: this.#tailIndex,
         byteLength: byteLength,
       });
     } catch (e) {
       ErrorLog.rethrow({
-        functionName: "ByteQueue.reserve",
+        functionName: "ByteQueue.getReserve",
         error: e,
       });
     }
   }
-  enqueue() {
+  enqueue(args) {
     try {
       this.#tailIndex += this.#enqueueReserveLength;
       this.#enqueueReserveLength = 0;
