@@ -13,19 +13,22 @@ export class Queue {
   #tailIndex;
   constructor(args) {
     try {
-      let capacity;
-      if (Types.isSimpleObject(args)) {
-        if (!(Object.hasOwn(args, "capacity"))) {
-          throw "Argument \"capacity\" is required.";
+      const capacity = (function () {
+        if (Types.isSimpleObject(args)) {
+          if (!(Object.hasOwn(args, "capacity"))) {
+            throw "Argument \"capacity\" is required.";
+          }
+          return args.capacity;
+        } else {
+          return args;
         }
-        capacity = args.capacity;
-      } else {
-        capacity = args;
-      }
+      })();
       if (!(Types.isInteger(capacity))) {
         throw "Argument \"capacity\" must be an integer.";
       }
-      this.#items = new Array(capacity + 1);
+      this.#items = new Array(capacity);
+      // Initialize to all nulls
+      this.#items.fill(null);
       this.#headIndex = 0;
       this.#tailIndex = 0;
     } catch (e) {
@@ -37,11 +40,18 @@ export class Queue {
   }
   enqueue(args) {
     try {
-      if (this.availableSlots() === 0) {
+      if (this.unusedCapacity() === 0) {
         throw "Queue is full.";
       }
+      if (this.#tailIndex === this.#items.length) {
+        this.#items.copyWithin(0, this.#headIndex, this.#items.length);
+        this.#tailIndex -= this.#headIndex;
+        this.#headIndex = 0;
+        // Set all remaining slots to null to allow proper GC
+        this.#items.fill(null, this.#tailIndex);
+      }
       this.#items[this.#tailIndex] = args;
-      this.#tailIndex = (this.#tailIndex + 1) % this.#items.length;
+      ++this.#tailIndex;
     } catch (e) {
       ErrorLog.rethrow({
         functionName: "Queue.enqueue",
@@ -55,8 +65,9 @@ export class Queue {
         throw "Empty queue cannot be dequeued.";
       }
       const item = this.#items[this.#headIndex];
+      // Set item to null to allow proper GC
       this.#items[this.#headIndex] = null;
-      this.#headIndex = (this.#headIndex + 1) % this.#items.length;
+      ++this.#headIndex;
       return item;
     } catch (e) {
       ErrorLog.rethrow({
@@ -75,23 +86,9 @@ export class Queue {
       });
     }
   }
-  availableSlots() {
-    try {
-      if (this.#tailIndex > this.#headIndex) {
-        return (this.#items.length - (this.#tailIndex - this.#headIndex));
-      } else {
-        return (this.#headIndex - this.#tailIndex);
-      }
-    } catch (e) {
-      ErrorLog.rethrow({
-        functionName: "Queue.availableSlots",
-        error: e,
-      });
-    }
-  }
   getCapacity() {
     try {
-      return (this.#items.length - 1);
+      return this.#items.length;
     } catch (e) {
       ErrorLog.rethrow({
         functionName: "Queue.getCapacity",
@@ -101,38 +98,54 @@ export class Queue {
   }
   setCapacity(args) {
     try {
-      const usedSlots = (function () {
-        if (this.#tailIndex > this.#headIndex) {
-          return (this.#tailIndex - this.#headIndex) - 1;
+      const capacity = (function () {
+        if (Types.isSimpleObject(args)) {
+          if (!(Object.hasOwn(args, "capacity"))) {
+            throw "Argument \"capacity\" is required.";
+          }
+          return args.capacity;
         } else {
-          return ((this.#tailIndex - this.#headIndex) + this.#items.length) - 1;
+          return args;
         }
       })();
-      if (args < usedSlots) {
-        throw "Capacity cannot be less than the used slots.";
+      if (!(Types.isInteger(capacity))) {
+        throw "Argument \"capacity\" must be an integer.";
       }
-      const newItems = new Array(args + 1);
-      let i = this.#headIndex;
-      let j = 0;
-      if (this.#tailIndex > this.#headIndex) {
-        for (; i < this.#tailIndex; ++i, ++j) {
-          newItems[j] = this.#items[i];
-        }
-      } else {
-        for (; i < this.#items.length; ++i, ++j) {
-          newItems[j] = this.#items[i];
-        }
-        i = 0;
-        for (; i < this.#tailIndex; ++i, ++j) {
-          newItems[j] = this.#items[i];
-        }
+      if (capacity < this.usedCapacity) {
+        throw "Argument \"capacity\" cannot be less than the used slots.";
+      }
+      const newItems = new Array(args);
+      // Initialize to all nulls
+      this.#items.fill(null);
+      for (let i = 0, j = this.#headIndex; j < this.#tailIndex; ++i, ++j) {
+        newItems[i] = this.#items[j];
       }
       this.#items = newItems;
+      this.#tailIndex -= this.#headIndex;
       this.#headIndex = 0;
-      this.#tailIndex = usedSlots;
     } catch (e) {
       ErrorLog.rethrow({
         functionName: "Queue.setCapacity",
+        error: e,
+      });
+    }
+  }
+  get usedCapacity() {
+    try {
+      return (this.#tailIndex - this.#headIndex);
+    } catch (e) {
+      ErrorLog.rethrow({
+        functionName: "Queue.usedCapacity",
+        error: e,
+      });
+    }
+  }
+  get unusedCapacity() {
+    try {
+      return (this.#block.byteLength - (this.#tailIndex - this.#headIndex));
+    } catch (e) {
+      ErrorLog.rethrow({
+        functionName: "Queue.unusedCapacity",
         error: e,
       });
     }
@@ -144,7 +157,7 @@ export class ByteQueue {
   #view; // for memoization
   #headIndex;
   #tailIndex;
-  #reserved;
+  #reservedLength;
   constructor(args) {
     try {
       if (!(Types.isSimpleObject(args))) {
@@ -158,7 +171,7 @@ export class ByteQueue {
       });
       this.#headIndex = 0;
       this.#tailIndex = 0;
-      this.#reserved = false;
+      this.#reservedLength = 0;
       this.#view = new Memory.View({
         memoryBlock: this.#block,
       });
@@ -169,75 +182,66 @@ export class ByteQueue {
       });
     }
   }
-  getMaxReserve() {
+  reserve(args) {
     try {
-      return this.#view.createSlice({
-        byteOffset: this.#tailIndex,
-        byteLength: this.#view.byteLength - this.#tailIndex,
-      };
-    } catch (e) {
-      ErrorLog.rethrow({
-        functionName: "ByteQueue.getMaxReserve",
-        error: e,
-      });
-    }
-  }
-  collate() {
-    try {
-      this.#view.copyWithin({
-        fromStart: this.#headIndex,
-        fromEnd: this.#tailIndex,
-        toStart: 0,
-      });
-      this.#tailIndex -= this.#headIndex;
-      this.#headIndex = 0;
-    } catch (e) {
-      ErrorLog.rethrow({
-        functionName: "ByteQueue.collate",
-        error: e,
-      });
-    }
-  }
-  getReserve(args) {
-    try {
-      let byteLength;
-      if (Types.isInteger(args)) {
-        byteLength = args;
-      } else if (Types.isSimpleObject(args)) {
-        if (!(Object.hasOwn(args, "byteLength"))) {
-          throw "Argument \"byteLength\" must be provided.";
+      const byteLength = (function () {
+        if (Types.isInteger(args)) {
+          return args;
+        } else if (Types.isSimpleObject(args)) {
+          if (!(Object.hasOwn(args, "byteLength"))) {
+            throw "Argument \"byteLength\" must be provided.";
+          }
+          return args.byteLength;
+        } else {
+          throw "Invalid Argument";
         }
-        byteLength = args.byteLength;
-      } else {
-        throw "Invalid Argument";
-      }
-      if (this.#reserveLength !== 0) {
-        throw "Attempt to reserve before enqueue.";
-      }
+      })();
       if (byteLength <= 0) {
         throw "Argument \"byteLength\" must be positive.";
       }
       if (byteLength >= this.#block.byteLength) {
         throw "Argument \"byteLength\" must be less than byteCapacity.";
       }
-      if (byteLength + this.#tailIndex > this.#block.byteLength) {
-        this.collate();
+      if (this.#tailIndex + byteLength > this.#block.byteLength) {
+        this.#view.copyWithin({
+          fromStart: this.#headIndex,
+          fromEnd: this.#tailIndex,
+          toStart: 0,
+        });
+        this.#tailIndex -= this.#headIndex;
+        this.#headIndex = 0;
       }
+      this.#reserveLength = byteLength;
       return this.#view.createSlice({
         byteOffset: this.#tailIndex,
-        byteLength: byteLength,
+        byteLength: this.#reserveLength,
       });
     } catch (e) {
       ErrorLog.rethrow({
-        functionName: "ByteQueue.getReserve",
+        functionName: "ByteQueue.reserve",
         error: e,
       });
     }
   }
   enqueue(args) {
     try {
-      this.#tailIndex += this.#enqueueReserveLength;
-      this.#enqueueReserveLength = 0;
+      const byteLength = (function () {
+        if (Types.isInteger(args)) {
+          return args;
+        } else if (Types.isSimpleObject(args)) {
+          if (!(Object.hasOwn(args, "byteLength"))) {
+            throw "Argument \"byteLength\" must be provided.";
+          }
+          return args.byteLength;
+        } else {
+          throw "Invalid Argument";
+        }
+      })();
+      if (byteLength > this.#reserveLength) {
+        throw "Argument \"byteLength\" cannot be greater than reserve byteLength (cannot enqueue more bytes than reserved).";
+      }
+      this.#tailIndex += this.#reserveLength;
+      this.#reserveLength = 0;
     } catch (e) {
       ErrorLog.rethrow({
         functionName: "ByteQueue.enqueue",
@@ -274,10 +278,24 @@ export class ByteQueue {
       });
     }
   }
-  usedCapacity() {
-    return (this.#tailIndex - this.#headIndex);
+  get usedCapacity() {
+    try {
+      return (this.#tailIndex - this.#headIndex);
+    } catch (e) {
+      ErrorLog.rethrow({
+        functionName: "ByteQueue.unusedCapacity",
+        error: e,
+      });
+    }
   }
-  unusedCapacity() {
-    return (this.#block.byteLength - (this.#tailIndex - this.#headIndex));
+  get unusedCapacity() {
+    try {
+      return (this.#block.byteLength - (this.#tailIndex - this.#headIndex));
+    } catch (e) {
+      ErrorLog.rethrow({
+        functionName: "ByteQueue.unusedCapacity",
+        error: e,
+      });
+    }
   }
 }
