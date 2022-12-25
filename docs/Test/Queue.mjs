@@ -167,7 +167,7 @@ export class ByteQueue {
         throw "Argument \"byteLength\" must be provided.";
       }
       this.#block = new Memory.Block({
-        byteLength: args.byteLength;
+        byteLength: args.byteLength,
       });
       this.#headIndex = 0;
       this.#tailIndex = 0;
