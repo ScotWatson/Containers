@@ -142,7 +142,7 @@ export class Queue {
   }
   get unusedCapacity() {
     try {
-      return (this.#block.byteLength - (this.#tailIndex - this.#headIndex));
+      return (this.#items.length - (this.#tailIndex - this.#headIndex));
     } catch (e) {
       ErrorLog.rethrow({
         functionName: "Queue.unusedCapacity",
