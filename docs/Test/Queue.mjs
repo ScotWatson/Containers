@@ -157,7 +157,7 @@ export class ByteQueue {
   #view; // for memoization
   #headIndex;
   #tailIndex;
-  #reservedLength;
+  #reserveLength;
   constructor(args) {
     try {
       if (!(Types.isSimpleObject(args))) {
@@ -171,7 +171,7 @@ export class ByteQueue {
       });
       this.#headIndex = 0;
       this.#tailIndex = 0;
-      this.#reservedLength = 0;
+      this.#reserveLength = 0;
       this.#view = new Memory.View({
         memoryBlock: this.#block,
       });
