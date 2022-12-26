@@ -3,9 +3,10 @@
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-import * as Types from "https://scotwatson.github.io/Debug/20221107/Types.mjs";
-import * as ErrorLog from "https://scotwatson.github.io/Debug/20221107/ErrorLog.mjs";
-import * as Memory from "https://scotwatson.github.io/Memory/20221107/Memory.mjs";
+import * as Types from "https://scotwatson.github.io/Debug/Test/Types.mjs";
+import * as ErrorLog from "https://scotwatson.github.io/Debug/Test/ErrorLog.mjs";
+import * as Memory from "https://scotwatson.github.io/Memory/Test/Memory.mjs";
+import * as Tasks from "https://scotwatson.github.io/Tasks/Test/Tasks.mjs";
 
 export class Sequence {
   #array;
@@ -471,5 +472,152 @@ export class Sequence {
         error: e,
       });
     }
+  }
+}
+
+class ByteSequence {
+  #buffer;
+  #byteLength;
+  #reserveLength;
+  #outputIndex;
+  constructor() {
+    this.#buffer = Memory.Block({
+      byteLength: 0,
+    });
+    const staticAllocate = Tasks.createStatic({
+      function: this.#allocate,
+      this: this,
+    });
+    const staticPush = Tasks.createStatic({
+      function: this.#push,
+      this: this,
+    });
+    this.#inputCallbackController.callback = new UniqueByteCallbackController({
+      allocate: staticAllocate,
+      invoke: staticPush,
+    });
+    const staticPull = Tasks.createStatic({
+      function: this.#pull,
+      this: this,
+    });
+    this.#outputCallbackController.callback = new UniqueCallbackController({
+      invoke: staticPull,
+    });
+  }
+  get byteLength() {
+    return this.#byteLength;
+  }
+  get capacity() {
+    return this.#buffer.length;
+  }
+  reserve(args) {
+    const byteLength = (function () {
+      if (Types.isInteger(args)) {
+        return args;
+      } else if (Types.isSimpleObject(args)) {
+        if (!("byteLength" in args)) {
+          throw "Argument \"byteLength\" must be provided.";
+        }
+        if (!(Types.isInteger(args.byteLength))) {
+          throw "Argument \"byteLength\" must be an integer.";
+        }
+        return args.index;
+      } else {
+        throw "Invalid Argument";
+      }
+    })();
+    return this.#allocate(byteLength);
+  }
+  extend(args) {
+    const byteLength = (function () {
+      if (Types.isInteger(args)) {
+        return args;
+      } else if (Types.isSimpleObject(args)) {
+        if (!("byteLength" in args)) {
+          throw "Argument \"byteLength\" must be provided.";
+        }
+        if (!(Types.isInteger(args.byteLength))) {
+          throw "Argument \"byteLength\" must be an integer.";
+        }
+        return args.index;
+      } else {
+        throw "Invalid Argument";
+      }
+    })();
+    this.#push(byteLength);
+  }
+  createView(args) {
+    const bufferView = new Memory.View({
+      memoryBlock: this.#buffer,
+    });
+  }
+  get inputCallback() {
+    return this.#inputCallbackController.callback;
+  }
+  get outputCallback() {
+    return this.#outputCallbackController.callback;
+  }
+  resetOutput() {
+    this.#outputIndex = 0;
+  }
+  #allocate(byteLength) {
+    this.#reserveLength = byteLength;
+    if (this.#byteLength + byteLength > this.#buffer.byteLength) {
+      const oldBufferView = new Memory.View({
+        memoryBlock: this.#buffer,
+      });
+      this.#buffer = new Memory.Block({
+        byteLength: this.#buffer.byteLength * 2,
+      });
+      const newBufferView = new Memory.View({
+        memoryBlock: this.#buffer,
+      });
+      const toView = newBufferView.createSlice({
+        start: 0,
+        end: oldBufferView.byteLength,
+        byteLength: oldBufferView.byteLength,
+      });
+      toView.set(oldBufferView);
+    }
+    const bufferView = new Memory.View({
+      memoryBlock: this.#buffer,
+    });
+    return bufferView.createSlice({
+      start: this.#byteLength,
+      end: this.#byteLength + byteLength,
+      byteLength: byteLength,
+    });
+  }
+  #push(byteLength) {
+    if (byteLength > this.#reserveLength) {
+      throw "Cannot extend further than allocated";
+    }
+    this.byteLength += byteLength;
+    this.#reserveLength = 0;
+  }
+  #pull(outputView) {
+    const bufferView = new Memory.View({
+      memoryBlock: this.#buffer,
+    });
+    const fromView = (function () {
+      if (this.#outputIndex + outputView.byteLength < this.#byteLength) {
+        return bufferView.createSlice({
+          start: this.#outputIndex,
+          end: this.#outputIndex + outputView.byteLength,
+          byteLength: outputView.byteLength,
+        });
+      } else {
+        return bufferView.createSlice({
+          start: this.#outputIndex,
+          end: this.#byteLength,
+          byteLength: this.#byteLength - this.#outputIndex,
+        });
+      }
+    })();
+    outputView.set(fromView);
+    this.#outputIndex += fromView.byteLength;
+    return fromView.byteLength;
+  }
+  createBlob() {
   }
 }
