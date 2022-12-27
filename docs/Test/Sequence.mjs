@@ -700,7 +700,7 @@ export class ByteSequence {
       if (byteLength > this.#reserveLength) {
         throw "Cannot extend further than allocated";
       }
-      this.byteLength += byteLength;
+      this.#byteLength += byteLength;
       this.#reserveLength = 0;
     } catch (e) {
       ErrorLog.rethrow({
