@@ -583,11 +583,11 @@ class ByteSequence {
         memoryBlock: this.#buffer,
       });
       let newByteLength = this.#buffer.byteLength * 2;
-      if (newByteLength < byteLength) {
-        newByteLength = byteLength;
+      if (newByteLength < minByteLength) {
+        newByteLength = minByteLength;
       }
       this.#buffer = new Memory.Block({
-        byteLength: ,
+        byteLength: newByteLength,
       });
       const newBufferView = new Memory.View({
         memoryBlock: this.#buffer,
