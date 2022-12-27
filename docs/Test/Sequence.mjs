@@ -526,6 +526,8 @@ class ByteSequence {
         throw "Invalid Argument";
       }
     })();
+    this.#inputCallbackController.revokeCallback();
+    this.#outputCallbackController.revokeCallback();
     return this.#allocate(byteLength);
   }
   extend(args) {
@@ -544,7 +546,28 @@ class ByteSequence {
         throw "Invalid Argument";
       }
     })();
+    this.#inputCallbackController.revokeCallback();
+    this.#outputCallbackController.revokeCallback();
     this.#push(byteLength);
+  }
+  shrinkToFit() {
+    this.#inputCallbackController.revokeCallback();
+    this.#outputCallbackController.revokeCallback();
+    const oldBufferView = new Memory.View({
+      memoryBlock: this.#buffer,
+    });
+    const fromView = bufferView.createSlice({
+      start: 0,
+      end: this.#byteLength,
+      byteLength: this.#byteLength,
+    });
+    this.#buffer = new Memory.Block({
+      memoryBlock: this.#byteLength,
+    });
+    const newBufferView = new Memory.View({
+      memoryBlock: this.#buffer,
+    });
+    newBufferView.set(fromView);
   }
   createView(args) {
     const bufferView = new Memory.View({
@@ -562,12 +585,17 @@ class ByteSequence {
   }
   #allocate(byteLength) {
     this.#reserveLength = byteLength;
-    if (this.#byteLength + byteLength > this.#buffer.byteLength) {
+    const minByteLength = this.#byteLength + byteLength;
+    if (minByteLength > this.#buffer.byteLength) {
       const oldBufferView = new Memory.View({
         memoryBlock: this.#buffer,
       });
+      let newByteLength = this.#buffer.byteLength * 2;
+      if (newByteLength < byteLength) {
+        newByteLength = byteLength;
+      }
       this.#buffer = new Memory.Block({
-        byteLength: this.#buffer.byteLength * 2,
+        byteLength: ,
       });
       const newBufferView = new Memory.View({
         memoryBlock: this.#buffer,
@@ -617,7 +645,5 @@ class ByteSequence {
     outputView.set(fromView);
     this.#outputIndex += fromView.byteLength;
     return fromView.byteLength;
-  }
-  createBlob() {
   }
 }
