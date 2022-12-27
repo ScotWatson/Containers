@@ -138,9 +138,7 @@ export class Sequence {
   }
   push(args) {
     try {
-      if (args instanceof this.#ElementClass) {
-        push_element(args);
-      } else if (Types.isArray(args)) {
+      if (Types.isArray(args)) {
         push_elements(args);
       } else if (Types.isSimpleObject(args)) {
         if (!(Object.hasOwn(args, "element"))) {
