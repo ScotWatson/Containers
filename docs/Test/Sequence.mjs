@@ -74,7 +74,7 @@ export class Sequence {
           throw "Argument \"sequences\" is required.";
         }
         if (Types.isArray(args.sequences)) {
-          throw "Argument \"sequences\" must be an array.",
+          throw "Argument \"sequences\" must be an array.";
         }
         sequences = args.sequences;
       } else {
