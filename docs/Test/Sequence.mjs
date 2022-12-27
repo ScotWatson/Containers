@@ -476,7 +476,7 @@ export class ByteSequence {
   #outputCallbackController;
   constructor() {
     try {
-      this.#buffer = Memory.Block({
+      this.#buffer = new Memory.Block({
         byteLength: 0,
       });
       const staticAllocate = Tasks.createStatic({
