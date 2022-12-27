@@ -467,7 +467,7 @@ export class Sequence {
   }
 }
 
-class ByteSequence {
+export class ByteSequence {
   #buffer;
   #byteLength;
   #reserveLength;
@@ -475,169 +475,265 @@ class ByteSequence {
   #inputCallbackController;
   #outputCallbackController;
   constructor() {
-    this.#buffer = Memory.Block({
-      byteLength: 0,
-    });
-    const staticAllocate = Tasks.createStatic({
-      function: this.#allocate,
-      this: this,
-    });
-    const staticPush = Tasks.createStatic({
-      function: this.#push,
-      this: this,
-    });
-    this.#inputCallbackController = new UniqueByteCallbackController({
-      allocate: staticAllocate,
-      invoke: staticPush,
-    });
-    const staticPull = Tasks.createStatic({
-      function: this.#pull,
-      this: this,
-    });
-    this.#outputCallbackController = new UniqueCallbackController({
-      invoke: staticPull,
-    });
+    try {
+      this.#buffer = Memory.Block({
+        byteLength: 0,
+      });
+      const staticAllocate = Tasks.createStatic({
+        function: this.#allocate,
+        this: this,
+      });
+      const staticPush = Tasks.createStatic({
+        function: this.#push,
+        this: this,
+      });
+      this.#inputCallbackController = new Tasks.UniqueByteCallbackController({
+        allocate: staticAllocate,
+        invoke: staticPush,
+      });
+      const staticPull = Tasks.createStatic({
+        function: this.#pull,
+        this: this,
+      });
+      this.#outputCallbackController = new Tasks.UniqueCallbackController({
+        invoke: staticPull,
+      });
+    } catch (e) {
+      ErrorLog.rethrow({
+        functionName: "ByteSequence constructor",
+        error: e,
+      });
+    }
   }
   get byteLength() {
-    return this.#byteLength;
+    try {
+      return this.#byteLength;
+    } catch (e) {
+      ErrorLog.rethrow({
+        functionName: "get ByteSequence.byteLength",
+        error: e,
+      });
+    }
   }
   get capacity() {
-    return this.#buffer.length;
+    try {
+      return this.#buffer.length;
+    } catch (e) {
+      ErrorLog.rethrow({
+        functionName: "get ByteSequence.capacity",
+        error: e,
+      });
+    }
   }
   reserve(args) {
-    const byteLength = (function () {
-      if (Types.isInteger(args)) {
-        return args;
-      } else if (Types.isSimpleObject(args)) {
-        if (!("byteLength" in args)) {
-          throw "Argument \"byteLength\" must be provided.";
+    try {
+      const byteLength = (function () {
+        if (Types.isInteger(args)) {
+          return args;
+        } else if (Types.isSimpleObject(args)) {
+          if (!("byteLength" in args)) {
+            throw "Argument \"byteLength\" must be provided.";
+          }
+          if (!(Types.isInteger(args.byteLength))) {
+            throw "Argument \"byteLength\" must be an integer.";
+          }
+          return args.index;
+        } else {
+          throw "Invalid Argument";
         }
-        if (!(Types.isInteger(args.byteLength))) {
-          throw "Argument \"byteLength\" must be an integer.";
-        }
-        return args.index;
-      } else {
-        throw "Invalid Argument";
-      }
-    })();
-    this.#inputCallbackController.revokeCallback();
-    this.#outputCallbackController.revokeCallback();
-    return this.#allocate(byteLength);
+      })();
+      this.#inputCallbackController.revokeCallback();
+      this.#outputCallbackController.revokeCallback();
+      return this.#allocate(byteLength);
+    } catch (e) {
+      ErrorLog.rethrow({
+        functionName: "ByteSequence.reserve",
+        error: e,
+      });
+    }
   }
   extend(args) {
-    const byteLength = (function () {
-      if (Types.isInteger(args)) {
-        return args;
-      } else if (Types.isSimpleObject(args)) {
-        if (!("byteLength" in args)) {
-          throw "Argument \"byteLength\" must be provided.";
+    try {
+      const byteLength = (function () {
+        if (Types.isInteger(args)) {
+          return args;
+        } else if (Types.isSimpleObject(args)) {
+          if (!("byteLength" in args)) {
+            throw "Argument \"byteLength\" must be provided.";
+          }
+          if (!(Types.isInteger(args.byteLength))) {
+            throw "Argument \"byteLength\" must be an integer.";
+          }
+          return args.index;
+        } else {
+          throw "Invalid Argument";
         }
-        if (!(Types.isInteger(args.byteLength))) {
-          throw "Argument \"byteLength\" must be an integer.";
-        }
-        return args.index;
-      } else {
-        throw "Invalid Argument";
-      }
-    })();
-    this.#inputCallbackController.revokeCallback();
-    this.#outputCallbackController.revokeCallback();
-    this.#push(byteLength);
+      })();
+      this.#inputCallbackController.revokeCallback();
+      this.#outputCallbackController.revokeCallback();
+      this.#push(byteLength);
+    } catch (e) {
+      ErrorLog.rethrow({
+        functionName: "ByteSequence.extend",
+        error: e,
+      });
+    }
   }
   shrinkToFit() {
-    this.#inputCallbackController.revokeCallback();
-    this.#outputCallbackController.revokeCallback();
-    const oldBufferView = new Memory.View({
-      memoryBlock: this.#buffer,
-    });
-    const fromView = bufferView.createSlice({
-      start: 0,
-      end: this.#byteLength,
-      byteLength: this.#byteLength,
-    });
-    this.#buffer = new Memory.Block({
-      memoryBlock: this.#byteLength,
-    });
-    const newBufferView = new Memory.View({
-      memoryBlock: this.#buffer,
-    });
-    newBufferView.set(fromView);
-  }
-  createView(args) {
-    const bufferView = new Memory.View({
-      memoryBlock: this.#buffer,
-    });
-  }
-  get inputCallback() {
-    return this.#inputCallbackController.callback;
-  }
-  get outputCallback() {
-    return this.#outputCallbackController.callback;
-  }
-  resetOutput() {
-    this.#outputIndex = 0;
-  }
-  #allocate(byteLength) {
-    this.#reserveLength = byteLength;
-    const minByteLength = this.#byteLength + byteLength;
-    if (minByteLength > this.#buffer.byteLength) {
+    try {
+      this.#inputCallbackController.revokeCallback();
+      this.#outputCallbackController.revokeCallback();
       const oldBufferView = new Memory.View({
         memoryBlock: this.#buffer,
       });
-      let newByteLength = this.#buffer.byteLength * 2;
-      if (newByteLength < minByteLength) {
-        newByteLength = minByteLength;
-      }
+      const fromView = bufferView.createSlice({
+        start: 0,
+        end: this.#byteLength,
+        byteLength: this.#byteLength,
+      });
       this.#buffer = new Memory.Block({
-        byteLength: newByteLength,
+        memoryBlock: this.#byteLength,
       });
       const newBufferView = new Memory.View({
         memoryBlock: this.#buffer,
       });
-      const toView = newBufferView.createSlice({
-        start: 0,
-        end: oldBufferView.byteLength,
-        byteLength: oldBufferView.byteLength,
+      newBufferView.set(fromView);
+    } catch (e) {
+      ErrorLog.rethrow({
+        functionName: "ByteSequence.shrinkToFit",
+        error: e,
       });
-      toView.set(oldBufferView);
     }
-    const bufferView = new Memory.View({
-      memoryBlock: this.#buffer,
-    });
-    return bufferView.createSlice({
-      start: this.#byteLength,
-      end: this.#byteLength + byteLength,
-      byteLength: byteLength,
-    });
+  }
+  createView(args) {
+    try {
+      const bufferView = new Memory.View({
+        memoryBlock: this.#buffer,
+      });
+      return bufferView.createSlice({
+        start: 0,
+        end: this.#byteLength,
+        byteLength: this.#byteLength,
+      });
+    } catch (e) {
+      ErrorLog.rethrow({
+        functionName: "ByteSequence.shrinkToFit",
+        error: e,
+      });
+    }
+  }
+  get inputCallback() {
+    try {
+      return this.#inputCallbackController.callback;
+    } catch (e) {
+      ErrorLog.rethrow({
+        functionName: "get ByteSequence.inputCallback",
+        error: e,
+      });
+    }
+  }
+  get outputCallback() {
+    try {
+      return this.#outputCallbackController.callback;
+    } catch (e) {
+      ErrorLog.rethrow({
+        functionName: "get ByteSequence.outputCallback",
+        error: e,
+      });
+    }
+  }
+  resetOutput() {
+    try {
+      this.#outputIndex = 0;
+    } catch (e) {
+      ErrorLog.rethrow({
+        functionName: "ByteSequence.resetOutput",
+        error: e,
+      });
+    }
+  }
+  #allocate(byteLength) {
+    try {
+      this.#reserveLength = byteLength;
+      const minByteLength = this.#byteLength + byteLength;
+      if (minByteLength > this.#buffer.byteLength) {
+        const oldBufferView = new Memory.View({
+          memoryBlock: this.#buffer,
+        });
+        let newByteLength = this.#buffer.byteLength * 2;
+        if (newByteLength < minByteLength) {
+          newByteLength = minByteLength;
+        }
+        this.#buffer = new Memory.Block({
+          byteLength: newByteLength,
+        });
+        const newBufferView = new Memory.View({
+          memoryBlock: this.#buffer,
+        });
+        const toView = newBufferView.createSlice({
+          start: 0,
+          end: oldBufferView.byteLength,
+          byteLength: oldBufferView.byteLength,
+        });
+        toView.set(oldBufferView);
+      }
+      const bufferView = new Memory.View({
+        memoryBlock: this.#buffer,
+      });
+      return bufferView.createSlice({
+        start: this.#byteLength,
+        end: this.#byteLength + byteLength,
+        byteLength: byteLength,
+      });
+    } catch (e) {
+      ErrorLog.rethrow({
+        functionName: "ByteSequence.#allocate",
+        error: e,
+      });
+    }
   }
   #push(byteLength) {
-    if (byteLength > this.#reserveLength) {
-      throw "Cannot extend further than allocated";
+    try {
+      if (byteLength > this.#reserveLength) {
+        throw "Cannot extend further than allocated";
+      }
+      this.byteLength += byteLength;
+      this.#reserveLength = 0;
+    } catch (e) {
+      ErrorLog.rethrow({
+        functionName: "ByteSequence.#push",
+        error: e,
+      });
     }
-    this.byteLength += byteLength;
-    this.#reserveLength = 0;
   }
   #pull(outputView) {
-    const bufferView = new Memory.View({
-      memoryBlock: this.#buffer,
-    });
-    const fromView = (function () {
-      if (this.#outputIndex + outputView.byteLength < this.#byteLength) {
-        return bufferView.createSlice({
-          start: this.#outputIndex,
-          end: this.#outputIndex + outputView.byteLength,
-          byteLength: outputView.byteLength,
-        });
-      } else {
-        return bufferView.createSlice({
-          start: this.#outputIndex,
-          end: this.#byteLength,
-          byteLength: this.#byteLength - this.#outputIndex,
-        });
-      }
-    })();
-    outputView.set(fromView);
-    this.#outputIndex += fromView.byteLength;
-    return fromView.byteLength;
+    try {
+      const bufferView = new Memory.View({
+        memoryBlock: this.#buffer,
+      });
+      const fromView = (function () {
+        if (this.#outputIndex + outputView.byteLength < this.#byteLength) {
+          return bufferView.createSlice({
+            start: this.#outputIndex,
+            end: this.#outputIndex + outputView.byteLength,
+            byteLength: outputView.byteLength,
+          });
+        } else {
+          return bufferView.createSlice({
+            start: this.#outputIndex,
+            end: this.#byteLength,
+            byteLength: this.#byteLength - this.#outputIndex,
+          });
+        }
+      })();
+      outputView.set(fromView);
+      this.#outputIndex += fromView.byteLength;
+      return fromView.byteLength;
+    } catch (e) {
+      ErrorLog.rethrow({
+        functionName: "ByteSequence.#pull",
+        error: e,
+      });
+    }
   }
 }
