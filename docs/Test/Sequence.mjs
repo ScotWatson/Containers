@@ -472,6 +472,8 @@ class ByteSequence {
   #byteLength;
   #reserveLength;
   #outputIndex;
+  #inputCallbackController;
+  #outputCallbackController;
   constructor() {
     this.#buffer = Memory.Block({
       byteLength: 0,
@@ -484,7 +486,7 @@ class ByteSequence {
       function: this.#push,
       this: this,
     });
-    this.#inputCallbackController.callback = new UniqueByteCallbackController({
+    this.#inputCallbackController = new UniqueByteCallbackController({
       allocate: staticAllocate,
       invoke: staticPush,
     });
@@ -492,7 +494,7 @@ class ByteSequence {
       function: this.#pull,
       this: this,
     });
-    this.#outputCallbackController.callback = new UniqueCallbackController({
+    this.#outputCallbackController = new UniqueCallbackController({
       invoke: staticPull,
     });
   }
