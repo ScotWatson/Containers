@@ -479,6 +479,9 @@ export class ByteSequence {
       this.#buffer = new Memory.Block({
         byteLength: 0,
       });
+      this.#byteLength = 0;
+      this.#reserveLength = 0;
+      this.#outputIndex = 0;
       const staticAllocate = Tasks.createStatic({
         function: this.#allocate,
         this: this,
