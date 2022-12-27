@@ -587,8 +587,7 @@ export class ByteSequence {
         memoryBlock: this.#buffer,
       });
       const fromView = bufferView.createSlice({
-        start: 0,
-        end: this.#byteLength,
+        byteOffset: 0,
         byteLength: this.#byteLength,
       });
       this.#buffer = new Memory.Block({
@@ -611,8 +610,7 @@ export class ByteSequence {
         memoryBlock: this.#buffer,
       });
       return bufferView.createSlice({
-        start: 0,
-        end: this.#byteLength,
+        byteOffset: 0,
         byteLength: this.#byteLength,
       });
     } catch (e) {
@@ -671,8 +669,7 @@ export class ByteSequence {
           memoryBlock: this.#buffer,
         });
         const toView = newBufferView.createSlice({
-          start: 0,
-          end: oldBufferView.byteLength,
+          byteOffset: 0,
           byteLength: oldBufferView.byteLength,
         });
         toView.set(oldBufferView);
@@ -681,8 +678,7 @@ export class ByteSequence {
         memoryBlock: this.#buffer,
       });
       return bufferView.createSlice({
-        start: this.#byteLength,
-        end: this.#byteLength + byteLength,
+        byteOffset: this.#byteLength,
         byteLength: byteLength,
       });
     } catch (e) {
@@ -714,14 +710,12 @@ export class ByteSequence {
       const fromView = (function () {
         if (this.#outputIndex + outputView.byteLength < this.#byteLength) {
           return bufferView.createSlice({
-            start: this.#outputIndex,
-            end: this.#outputIndex + outputView.byteLength,
+            byteOffset: this.#outputIndex,
             byteLength: outputView.byteLength,
           });
         } else {
           return bufferView.createSlice({
-            start: this.#outputIndex,
-            end: this.#byteLength,
+            byteOffset: this.#outputIndex,
             byteLength: this.#byteLength - this.#outputIndex,
           });
         }
