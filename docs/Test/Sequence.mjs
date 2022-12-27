@@ -85,9 +85,6 @@ export class Sequence {
         if (!(thisSeq instanceof Sequence)) {
           throw "Only sequences can be concatenated with sequences.";
         }
-        if (thisSeq.ElementClass !== this.#ElementClass) {
-          throw "Sequences must be of the same type to be concatenated.";
-        }
         arrays.push(thisSeq.#array);
       }
       return this.#array.concat(...arrays);
