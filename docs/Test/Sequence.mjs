@@ -685,6 +685,7 @@ export class ByteSequence {
       const bufferView = new Memory.View({
         memoryBlock: this.#buffer,
       });
+      console.log(bufferView.byteLength);
       console.log(this.#byteLength);
       console.log(byteLength);
       return bufferView.createSlice({
