@@ -599,7 +599,9 @@ export class ByteSequence {
       const newBufferView = new Memory.View({
         memoryBlock: this.#buffer,
       });
-      newBufferView.set(fromView);
+      newBufferView.set({
+        from: fromView,
+      });
     } catch (e) {
       ErrorLog.rethrow({
         functionName: "ByteSequence.shrinkToFit",
@@ -675,7 +677,9 @@ export class ByteSequence {
           byteOffset: 0,
           byteLength: oldBufferView.byteLength,
         });
-        toView.set(oldBufferView);
+        toView.set({
+          from: oldBufferView,
+        });
       }
       const bufferView = new Memory.View({
         memoryBlock: this.#buffer,
@@ -723,7 +727,9 @@ export class ByteSequence {
           });
         }
       })();
-      outputView.set(fromView);
+      outputView.set({
+        from: fromView,
+      });
       this.#outputIndex += fromView.byteLength;
       return fromView.byteLength;
     } catch (e) {
