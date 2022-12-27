@@ -320,9 +320,6 @@ export class Sequence {
       if (!(Object.hasOwn(args, "padElement"))) {
         throw "Argument \"padElement\" is required.";
       }
-      if (!(args.padElement instanceof this.#ElementClass)) {
-        throw "Argument \"padElement\" must be of type this.ElementClass.";
-      }
       return this.#array.concat(Array(args.targetLength).fill(args.padElement)).slice(-(Math.max(args.targetLength, this.#array.length)));
     } catch (e) {
       ErrorLog.rethrow({
