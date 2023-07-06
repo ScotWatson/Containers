@@ -1,12 +1,12 @@
 /*
-(c) 2022 Scot Watson  All Rights Reserved
+(c) 2023 Scot Watson  All Rights Reserved
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-import * as Types from "https://scotwatson.github.io/Debug/Test/Types.mjs";
-import * as ErrorLog from "https://scotwatson.github.io/Debug/Test/ErrorLog.mjs";
-import * as Memory from "https://scotwatson.github.io/Memory/Test/Memory.mjs";
-import * as Tasks from "https://scotwatson.github.io/Tasks/Test/Tasks.mjs";
+import * as Types from "https://scotwatson.github.io/Debug/20230705/Types.mjs";
+import * as ErrorLog from "https://scotwatson.github.io/Debug/20230705/ErrorLog.mjs";
+import * as Memory from "https://scotwatson.github.io/Memory/20230705/Memory.mjs";
+import * as Tasks from "https://scotwatson.github.io/Tasks/20230705/Tasks.mjs";
 
 export class Sequence {
   #array;
